@@ -1,0 +1,14 @@
+[project]
+authors = ["ernie <simutisernestas@gmail.com>"]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "MIXXX2Rekordbox"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.12.*"
+pip = ">=24.3.1,<25"
+protobuf = ">=5.28.3,<6"

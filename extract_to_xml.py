@@ -2,16 +2,15 @@ import sqlite3
 import beats_pb2
 import xml.etree.ElementTree as ET
 
+
 # Function to calculate the beat position in seconds
 def calculate_beat_position(blob_data, sample_rate):
-    # Ensure blob_data is in bytes
-    #if isinstance(blob_data, str):
-       # blob_data = blob_data.encode('utf-8')
-    
     beatgrid = beats_pb2.BeatGrid()
     beatgrid.ParseFromString(blob_data)
 
-    if beatgrid.HasField("first_beat") and beatgrid.first_beat.HasField("frame_position"):
+    if beatgrid.HasField("first_beat") and beatgrid.first_beat.HasField(
+        "frame_position"
+    ):
         frame_position = beatgrid.first_beat.frame_position
         beat_length = 60.0 / beatgrid.bpm.bpm
 
@@ -27,8 +26,9 @@ def calculate_beat_position(blob_data, sample_rate):
     else:
         return None
 
+
 # Connect to your SQLite DB
-db_path = r'C:\Users\felix\AppData\Local\Mixxx\mixxxdb.sqlite'
+db_path = "./mixxxdb.sqlite"
 conn = sqlite3.connect(db_path)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
@@ -62,7 +62,7 @@ SELECT
 			WHEN T0.Rating = 4 THEN 204
 			WHEN T0.Rating = 5 THEN 255
 			WHEN T0.Rating > 5 THEN 255
-			ELSE 0 
+			ELSE 0
 	END as Rating,
     CASE 
         WHEN T0.Color IS NULL THEN ''
@@ -89,7 +89,6 @@ SELECT
 FROM library T0
 INNER JOIN track_locations T1 ON T0.ID = T1.id
 WHERE T0.mixxx_deleted = 0
-
 """
 
 # Execute the SQL query
@@ -100,34 +99,36 @@ data = cursor.fetchall()
 
 # SQL query to retrieve position marks
 position_marks_query = """
-SELECT 	track_id as TrackID, 
+SELECT 	track_id as TrackID,
 		label as Name,
 		0 as Type, 
-        ROUND(position / (2.0 * T1.Samplerate), 3) as Start, 
+        ROUND(position / (2.0 * T1.Samplerate), 3) as Start,
+        ROUND(length / (2.0 * T1.Samplerate), 3) as Duration,
 		hotcue as Num,
 		((T0.Color >> 16) & 255) AS Red,
 		((T0.Color >> 8) & 255) AS Green,
 		(T0.Color & 255) AS Blue
 FROM cues T0 INNER JOIN library T1 ON T0.track_id = T1.id
-WHERE T0.Type = 1 AND T1.mixxx_deleted = 0
+WHERE T1.mixxx_deleted = 0
 """
+# T0.Type = 1 AND
 
 cursor.execute(position_marks_query)
 
 # Fetch all position marks as dictionaries
 position_marks_data = cursor.fetchall()
-	
+
 # Create a dictionary to store position marks by TrackID
 position_marks_dict = {}
 
 # Iterate through the position marks and group them by TrackID
 for position_mark in position_marks_data:
-    track_id = position_mark['TrackID']
+    track_id = position_mark["TrackID"]
     if track_id not in position_marks_dict:
         position_marks_dict[track_id] = []
     position_marks_dict[track_id].append(position_mark)
-    
-    
+# print(position_marks_dict)
+
 # Your SQL query for playlists and crates
 playlists_crates_query = """
 SELECT '1' || T0.ID AS id, T0.Name, T1.track_id, T1.position
@@ -157,77 +158,111 @@ playlist_dict = {}
 
 # Iterate through playlists and crates and group them by ID
 for item in playlists_crates_data:
-    playlist_id = item['id']
+    playlist_id = item["id"]
     if playlist_id not in playlist_dict:
-        playlist_dict[playlist_id] = {'Name': item['Name'], 'Tracks': []}
-    playlist_dict[playlist_id]['Tracks'].append(item['track_id'])
-   
+        playlist_dict[playlist_id] = {"Name": item["Name"], "Tracks": []}
+    playlist_dict[playlist_id]["Tracks"].append(item["track_id"])
+
 
 # Create the DJ_PLAYLISTS root element
 dj_playlists = ET.Element("DJ_PLAYLISTS", Version="1.0.0")
 
 # PRODUCT element
-product = ET.SubElement(dj_playlists, "PRODUCT", Name="rekordbox", Version="6.7.7", Company="AlphaTheta")
+product = ET.SubElement(
+    dj_playlists, "PRODUCT", Name="rekordbox", Version="6.7.7", Company="AlphaTheta"
+)
 
 # COLLECTION element
 collection = ET.SubElement(dj_playlists, "COLLECTION", Entries=str(len(data)))
 
 # Iterate through your data and create TRACK elements
 for row in data:
-    track = ET.SubElement(collection, "TRACK",
-    TrackID=str(row['TrackID']),
-    Name=str(row['Name']),
-    Artist=str(row['Artist']),
-    Composer=str(row['Composer']),
-    Album=str(row['Album']),
-    Grouping=str(row['Grouping']),
-    Genre=str(row['Genre']),
-    Kind=str(row['Kind']),
-    Size=str(row['Size']),
-    TotalTime=str(row['TotalTime']),
-    DiscNumber="",
-    TrackNumber=str(row['TrackNumber']),
-    Year=str(row['Year']),
-    AverageBpm=str(row['AverageBpm']),
-    DateAdded="",
-    BitRate=str(row['BitRate']),
-    SampleRate=str(row['SampleRate']),
-    Comments=str(row['Comments']),
-    PlayCount=str(row['PlayCount']),
-    Rating=str(row['Rating']),
-    Location=str(row['Location']),
-    Remixer="",
-    Tonality=str(row['Tonality']),
-    Label="",
-    Mix="",
-    Colour=str(row['HexColor2'])
-)
-# Calculate the beat position in seconds from the blob
-    beats_blob = row['beats']
-    sample_rate = row['SampleRate']
+    if "thelib" not in row["Location"]:
+        continue
+    if int(row["BitRate"]) < 320:
+        continue
+    track = ET.SubElement(
+        collection,
+        "TRACK",
+        TrackID=str(row["TrackID"]),
+        Name=str(row["Name"]),
+        Artist=str(row["Artist"]),
+        Composer=str(row["Composer"]),
+        Album=str(row["Album"]),
+        Grouping=str(row["Grouping"]),
+        Genre=str(row["Genre"]),
+        Kind=str(row["Kind"]),
+        Size=str(row["Size"]),
+        TotalTime=str(row["TotalTime"]),
+        DiscNumber="",
+        TrackNumber=str(row["TrackNumber"]),
+        Year=str(row["Year"]),
+        AverageBpm=str(row["AverageBpm"]),
+        DateAdded="",
+        BitRate=str(row["BitRate"]),
+        SampleRate=str(row["SampleRate"]),
+        Comments=str(row["Comments"]),
+        PlayCount=str(row["PlayCount"]),
+        Rating=str(row["Rating"]),
+        Location=str(row["Location"]),
+        Remixer="",
+        Tonality=str(row["Tonality"]),
+        Label="",
+        Mix="",
+        Colour=str(row["HexColor2"]),
+    )
+    # Calculate the beat position in seconds from the blob
+    beats_blob = row["beats"]
+
+    sample_rate = row["SampleRate"]
+    beat_position_seconds = None
     if beats_blob is not None:
         beat_position_seconds = calculate_beat_position(beats_blob, sample_rate)
 
     if beat_position_seconds is not None:
         # TEMPO element
-        tempo = ET.SubElement(track, "TEMPO", Inizio=f"{beat_position_seconds:.3f}", Bpm=str(row['AverageBpm']), Metro="4/4", Battito="1")
-
+        tempo = ET.SubElement(
+            track,
+            "TEMPO",
+            Inizio=f"{beat_position_seconds:.3f}",
+            Bpm=str(row["AverageBpm"]),
+            Metro="4/4",
+            Battito="1",
+        )
 
     # TEMPO element
     # tempo = ET.SubElement(track, "TEMPO", Inizio="0.085", Bpm=str(row['AverageBPM']), Metro="4/4", Battito="1")
-	
-	 # POSITION_MARK elements for the track
-    if row['TrackID'] in position_marks_dict:
-        for position_mark in position_marks_dict[row['TrackID']]:
-            position_mark_elem = ET.SubElement(track, "POSITION_MARK", 
-			    Name=str(position_mark['Name']),
-                Type=str(position_mark['Type']),
-                Start=str(position_mark['Start']),
-                Num=str(position_mark['Num']),
-                Red=str(position_mark['Red']),
-                Green=str(position_mark['Green']),
-                Blue=str(position_mark['Blue'])			
-			)
+
+    # POSITION_MARK elements for the track
+    if row["TrackID"] in position_marks_dict:
+        for position_mark in position_marks_dict[row["TrackID"]]:
+            dur = float(position_mark["Duration"])
+            if dur > 0 and dur < 10:
+                position_mark_elem = ET.SubElement(
+                    track,
+                    "POSITION_MARK",
+                    Name=str(position_mark["Name"]),
+                    Type=str(position_mark["Type"]),
+                    Start=str(position_mark["Start"]),
+                    End=str(position_mark["Start"] + dur),
+                    Num=str(position_mark["Num"]),
+                    Red=str(position_mark["Red"]),
+                    Green=str(position_mark["Green"]),
+                    Blue=str(position_mark["Blue"]),
+                )
+            else:
+                position_mark_elem = ET.SubElement(
+                    track,
+                    "POSITION_MARK",
+                    Name=str(position_mark["Name"]),
+                    Type=str(position_mark["Type"]),
+                    Start=str(position_mark["Start"]),
+                    Num=str(position_mark["Num"]),
+                    Red=str(position_mark["Red"]),
+                    Green=str(position_mark["Green"]),
+                    Blue=str(position_mark["Blue"]),
+                )
+
 # Create PLAYLISTS node under COLLECTION
 playlists_node = ET.SubElement(dj_playlists, "PLAYLISTS")
 
@@ -236,18 +271,29 @@ playlist_tracks_dict = {}
 
 # Iterate through playlists and crates and group tracks by playlist
 for item in playlists_crates_data:
-    playlist_id = item['id']
+    playlist_id = item["id"]
+    if "Crate" in item["Name"]:
+        continue
     if playlist_id not in playlist_tracks_dict:
-        playlist_tracks_dict[playlist_id] = {'Name': item['Name'], 'Tracks': []}
-    playlist_tracks_dict[playlist_id]['Tracks'].append(item['track_id'])
+        playlist_tracks_dict[playlist_id] = {"Name": item["Name"], "Tracks": []}
+    playlist_tracks_dict[playlist_id]["Tracks"].append(item["track_id"])
 
 # Create a ROOT node to hold all playlists
-root_node = ET.SubElement(playlists_node, "NODE", Name="ROOT", Type="0", Count=str(len(playlist_tracks_dict)))
+root_node = ET.SubElement(
+    playlists_node, "NODE", Name="ROOT", Type="0", Count=str(len(playlist_tracks_dict))
+)
 
 # Create NODE elements for each playlist/crate
 for playlist_id, playlist_data in playlist_tracks_dict.items():
-    playlist_tracks = playlist_data['Tracks']
-    node = ET.SubElement(root_node, "NODE", Name=playlist_data['Name'], Type="1", KeyType="0", Entries=str(len(playlist_tracks)))
+    playlist_tracks = playlist_data["Tracks"]
+    node = ET.SubElement(
+        root_node,
+        "NODE",
+        Name=playlist_data["Name"],
+        Type="1",
+        KeyType="0",
+        Entries=str(len(playlist_tracks)),
+    )
 
     # Create TRACK elements for tracks within each playlist/crate
     for track_id in playlist_tracks:
@@ -255,11 +301,11 @@ for playlist_id, playlist_data in playlist_tracks_dict.items():
 
 
 # Create the XML file
-output_xml_path = 'output.xml'
+output_xml_path = "output.xml"
 tree = ET.ElementTree(dj_playlists)
 tree.write(output_xml_path, encoding="UTF-8", xml_declaration=True)
 
 # Close the DB connection
 conn.close()
 
-print(f'Data extracted from {db_path} and written to {output_xml_path}')
+print(f"Data extracted from {db_path} and written to {output_xml_path}")
