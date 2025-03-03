@@ -235,31 +235,35 @@ for row in data:
     # POSITION_MARK elements for the track
     if row["TrackID"] in position_marks_dict:
         for position_mark in position_marks_dict[row["TrackID"]]:
+            # if position_mark["Num"] < 0:
+            #     continue
             dur = float(position_mark["Duration"])
             if dur > 0 and dur < 10:
                 position_mark_elem = ET.SubElement(
                     track,
                     "POSITION_MARK",
                     Name=str(position_mark["Name"]),
-                    Type=str(position_mark["Type"]),
+                    Type=str(4),  # loop
                     Start=str(position_mark["Start"]),
                     End=str(position_mark["Start"] + dur),
-                    Num=str(position_mark["Num"]),
-                    Red=str(position_mark["Red"]),
-                    Green=str(position_mark["Green"]),
-                    Blue=str(position_mark["Blue"]),
+                    Num=str(-1),
+                    # Num=str(position_mark["Num"]),
+                    # Red=str(position_mark["Red"]),
+                    # Green=str(position_mark["Green"]),
+                    # Blue=str(position_mark["Blue"]),
                 )
             else:
                 position_mark_elem = ET.SubElement(
                     track,
                     "POSITION_MARK",
                     Name=str(position_mark["Name"]),
-                    Type=str(position_mark["Type"]),
+                    Type=str(0),  # regular memory cue
                     Start=str(position_mark["Start"]),
-                    Num=str(position_mark["Num"]),
-                    Red=str(position_mark["Red"]),
-                    Green=str(position_mark["Green"]),
-                    Blue=str(position_mark["Blue"]),
+                    Num=str(-1),
+                    # Num=str(position_mark["Num"]),
+                    # Red=str(position_mark["Red"]),
+                    # Green=str(position_mark["Green"]),
+                    # Blue=str(position_mark["Blue"]),
                 )
 
 # Create PLAYLISTS node under COLLECTION
