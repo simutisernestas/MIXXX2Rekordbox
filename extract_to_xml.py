@@ -87,7 +87,7 @@ SELECT
     T0.color,
     T0.beats
 FROM library T0
-INNER JOIN track_locations T1 ON T0.ID = T1.id
+INNER JOIN track_locations T1 ON T0.location = T1.id
 WHERE T0.mixxx_deleted = 0
 """
 
@@ -127,7 +127,6 @@ for position_mark in position_marks_data:
     if track_id not in position_marks_dict:
         position_marks_dict[track_id] = []
     position_marks_dict[track_id].append(position_mark)
-# print(position_marks_dict)
 
 # Your SQL query for playlists and crates
 playlists_crates_query = """
