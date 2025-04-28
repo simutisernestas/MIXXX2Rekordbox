@@ -218,27 +218,52 @@ for row in data:
     if beats_blob is not None:
         beat_position_seconds = calculate_beat_position(beats_blob, sample_rate)
 
+    markers_positions = []
+    for pm in position_marks_dict[row["TrackID"]]:
+        if dict(pm)["Num"] < 0 and dict(pm)["Duration"] == 0.0:
+            markers_positions.append(dict(pm)["Start"])
+
     if beat_position_seconds is not None:
         # TEMPO element
         tempo = ET.SubElement(
             track,
             "TEMPO",
-            Inizio=f"{beat_position_seconds:.3f}",
+            Inizio=f"{max(markers_positions):.3f}",
             Bpm=str(row["AverageBpm"]),
             Metro="4/4",
             Battito="1",
         )
 
+    position_mark_elem = ET.SubElement(
+        track,
+        "POSITION_MARK",
+        Name="",
+        Type=str(0),  # the cue point
+        Start=f"{max(markers_positions):.3f}",
+        Num=str(-1),
+    )
+
     # TEMPO element
     # tempo = ET.SubElement(track, "TEMPO", Inizio="0.085", Bpm=str(row['AverageBPM']), Metro="4/4", Battito="1")
+
+    if row["TrackID"] == 811:
+        print(dict(row))
+        # print(markers_positions)
+        # exit()
+        # print(beat_position_seconds)
+        for pm in position_marks_dict[row["TrackID"]]:
+            print(dict(pm))
+            # print(dict(pm)["Start"] < 0)
+            # print(dict(pm)["Start"])
+        # exit()
 
     # POSITION_MARK elements for the track
     if row["TrackID"] in position_marks_dict:
         for position_mark in position_marks_dict[row["TrackID"]]:
-            # if position_mark["Num"] < 0:
-            #     continue
+            if position_mark["Num"] < 0:
+                continue
             dur = float(position_mark["Duration"])
-            if dur > 0 and dur < 10:
+            if dur > 0:
                 position_mark_elem = ET.SubElement(
                     track,
                     "POSITION_MARK",
